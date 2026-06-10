@@ -3,7 +3,7 @@ package agent
 import "github.com/spf13/afero"
 
 // CommandExport is the agent-agnostic slash-command export spec for one prompt.
-// It is the abstraction the per-agent command writers (claude, gemini) consume,
+// It is the abstraction the per-agent command writers (claude, antigravity) consume,
 // so they never import ctxloom's bundle types: ctxloom maps each
 // bundles.LoadedContent to a CommandExport for the target agent (resolving that
 // agent's enablement + metadata) at the wiring boundary. Fields beyond
@@ -14,9 +14,9 @@ type CommandExport struct {
 	Content      string   // The command body
 	Enabled      bool     // Resolved enablement for the target agent
 	Description  string   // For /help display
-	ArgumentHint string   // Autocomplete hint (unused by gemini)
-	AllowedTools []string // Tool restrictions (unused by gemini)
-	Model        string   // Override model (unused by gemini)
+	ArgumentHint string   // Autocomplete hint (unused by antigravity)
+	AllowedTools []string // Tool restrictions (unused by antigravity)
+	Model        string   // Override model (unused by antigravity)
 }
 
 // CommandFileOption configures command file writing.
@@ -35,7 +35,7 @@ func WithCommandFS(fs afero.Fs) CommandFileOption {
 
 // ResolveCommandFS applies the options and returns the filesystem to use,
 // defaulting to the OS filesystem. Per-agent command writers (in the claude and
-// gemini packages) call this so they can honor WithCommandFS without reaching
+// antigravity packages) call this so they can honor WithCommandFS without reaching
 // the unexported option struct.
 func ResolveCommandFS(opts ...CommandFileOption) afero.Fs {
 	options := &commandFileOptions{fs: afero.NewOsFs()}

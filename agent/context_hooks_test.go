@@ -89,8 +89,8 @@ func TestMergeHooksConfig_PluginSpecificHooks(t *testing.T) {
 					"PreTool":  []wire.Hook{{Command: "new"}},
 					"PostTool": []wire.Hook{{Command: "post"}},
 				},
-				"gemini": {
-					"PreTool": []wire.Hook{{Command: "gemini-hook"}},
+				"antigravity": {
+					"PreTool": []wire.Hook{{Command: "antigravity-hook"}},
 				},
 			},
 		}
@@ -99,6 +99,6 @@ func TestMergeHooksConfig_PluginSpecificHooks(t *testing.T) {
 
 		assert.Len(t, dest.Plugins["claude-code"]["PreTool"], 2)
 		assert.Len(t, dest.Plugins["claude-code"]["PostTool"], 1)
-		assert.Len(t, dest.Plugins["gemini"]["PreTool"], 1)
+		assert.Len(t, dest.Plugins["antigravity"]["PreTool"], 1)
 	})
 }

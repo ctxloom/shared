@@ -111,13 +111,13 @@ func TestMergeMCPConfig_PluginSpecificServers(t *testing.T) {
 		}}
 		src := &MCPConfig{Plugins: map[string]map[string]MCPServer{
 			"claude-code": {"new": {Command: "new-cmd"}},
-			"gemini":      {"gemini-server": {Command: "gemini-cmd"}},
+			"antigravity": {"antigravity-server": {Command: "antigravity-cmd"}},
 		}}
 		MergeMCPConfig(dest, src)
 		for _, c := range []struct{ backend, server, want string }{
 			{"claude-code", "existing", "existing-cmd"},
 			{"claude-code", "new", "new-cmd"},
-			{"gemini", "gemini-server", "gemini-cmd"},
+			{"antigravity", "antigravity-server", "antigravity-cmd"},
 		} {
 			if got := dest.Plugins[c.backend][c.server].Command; got != c.want {
 				t.Errorf("Plugins[%q][%q].Command = %q, want %q", c.backend, c.server, got, c.want)

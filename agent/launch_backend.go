@@ -34,7 +34,7 @@ type ContentSkills interface {
 	RegisterFromContent(workDir string, cmds []CommandExport) error
 }
 
-// LaunchBackend is the shared core of a local-CLI launch agent (claude/gemini).
+// LaunchBackend is the shared core of a local-CLI launch agent (claude/antigravity).
 // It owns the capability wiring (lifecycle/skills/context/mcp/history), the
 // capability accessors, and the generic Setup/Cleanup that every launch agent
 // shares. A concrete agent embeds it, calls InitLaunch with its constructed

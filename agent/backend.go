@@ -12,7 +12,7 @@ import (
 // Backend is the LAUNCH facet of an agent — running the LLM and its session
 // lifecycle. It is deliberately separate from the SettingsWriter (settings)
 // facet so a consumer can depend on one without the other. Each agent
-// (claude/gemini) implements both facets; ltk implements/consumes only
+// (claude/antigravity) implements both facets; ltk implements/consumes only
 // SettingsWriter.
 
 // BackendConfig is the decoded, typed configuration for one labeled LLM entry.
@@ -20,7 +20,7 @@ import (
 // interface and never type-switches on the backend. It is part of the
 // engine-agnostic contract alongside Backend.
 type BackendConfig interface {
-	// BackendType returns the discriminator (claude-code / gemini / codex)
+	// BackendType returns the discriminator (claude-code / antigravity / codex)
 	// naming the backend this config drives.
 	BackendType() string
 }
@@ -33,7 +33,10 @@ const (
 	ModeOneshot     ExecutionMode = 1 // Single prompt/response, exit after
 )
 
-// Fragment represents a context fragment or prompt with metadata.
+// Fragment is one piece of context — a bundle fragment — with its metadata. It
+// is the unit of context an agent injects into the model (via SetupRequest.
+// Fragments); it has nothing to do with slash commands/skills, which travel
+// separately as ManagedConfig.Prompts ([]CommandExport).
 type Fragment struct {
 	Name         string
 	Version      string
@@ -51,21 +54,24 @@ type ModelInfo struct {
 	Provider     string
 }
 
-// Backend is the interface that all LLM backends must implement.
+// Backend is the core contract the runner (agent server) depends on: identify
+// the agent, declare its modes, run the Setup→Execute→Cleanup lifecycle, and
+// expose session history (read by the host for /clear recovery and compaction).
+//
+// It deliberately does NOT carry the hook/skill/context/MCP capability
+// accessors: those are an agent's internal setup wiring, not something the runner
+// calls, so forcing them onto every backend was a nil-returning contract nobody
+// consumed. They live on the optional Capabilities facet, discovered by type
+// assertion where introspection is actually wanted.
 type Backend interface {
 	// Identity
 	Name() string
 	Version() string
 	SupportedModes() []ExecutionMode
 
-	// Capability accessors - return nil if not supported.
-	// These are CONCEPTS, not implementations. The returned objects
-	// handle backend-specific details internally.
-	Lifecycle() LifecycleHandler // Session events (start, end, tool use)
-	Skills() SkillRegistry       // User-invokable actions
-	Context() ContextProvider    // Getting context into the LLM
-	MCP() MCPManager             // MCP server registration
-	History() SessionHistory     // Conversation history and /clear recovery
+	// History exposes conversation history (transcripts) and /clear recovery.
+	// The host reads it via the agent server and the compactor.
+	History() SessionHistory
 
 	// Execution lifecycle
 	Setup(ctx context.Context, req *SetupRequest) error
@@ -73,8 +79,20 @@ type Backend interface {
 	Cleanup(ctx context.Context) error
 }
 
+// Capabilities is the optional introspection facet a launch agent exposes for
+// its hook/skill/context/MCP wiring. The runner never needs it — it exists for
+// tests and tooling that want to inspect what an agent wires. Each accessor
+// returns nil when the agent doesn't support that capability. Discover via type
+// assertion: if c, ok := b.(Capabilities); ok { ... }.
+type Capabilities interface {
+	Lifecycle() LifecycleHandler // Session events (start, end, tool use)
+	Skills() SkillRegistry       // User-invokable actions
+	Context() ContextProvider    // Getting context into the LLM
+	MCP() MCPManager             // MCP server registration
+}
+
 // LifecycleHandler manages session lifecycle events.
-// Implementation varies by backend: hooks (Claude/Gemini), callbacks, env vars, etc.
+// Implementation varies by backend: hooks (Claude/Antigravity), callbacks, env vars, etc.
 type LifecycleHandler interface {
 	// OnSessionStart registers behavior for session start/resume/clear events.
 	OnSessionStart(workDir string, handler EventHandler) error
@@ -144,7 +162,7 @@ type MCPServer struct {
 }
 
 // MCPManager manages MCP (Model Context Protocol) server registrations.
-// Implementation varies by backend: settings.json (Claude/Gemini), config files, etc.
+// Implementation varies by backend: settings.json (Claude) / hooks.json (Antigravity), config files, etc.
 type MCPManager interface {
 	// RegisterServer adds an MCP server to the backend configuration.
 	RegisterServer(workDir string, server MCPServer) error
@@ -163,7 +181,7 @@ type MCPManager interface {
 // SessionHistory provides access to the LLM's conversation history and tracks
 // sessions for /clear recovery. Combines reading transcripts with tracking
 // which sessions belong to which ctxloom run.
-// Implementation varies by backend: JSONL files (Claude), JSON files (Gemini), etc.
+// Implementation varies by backend: JSONL files (Claude/Antigravity), etc.
 type SessionHistory interface {
 	// Reading sessions
 	// GetCurrentSession returns the current/most recent session transcript.
@@ -178,7 +196,7 @@ type SessionHistory interface {
 	// Tracking for /clear recovery
 	// TranscriptPathFromHook extracts or computes the transcript path from hook input.
 	// Claude: computes path from sessionID + workDir
-	// Gemini: returns transcriptPath directly
+	// Antigravity/Codex: returns transcriptPath directly
 	TranscriptPathFromHook(workDir, sessionID, transcriptPath string) string
 
 	// Note: "which session is previous" is resolved by ctxloom from its session
@@ -243,8 +261,7 @@ const (
 // SetupRequest contains everything needed to prepare the backend before execution.
 type SetupRequest struct {
 	WorkDir   string
-	Fragments []*Fragment
-	Prompts   []*Fragment // For slash commands/skills
+	Fragments []*Fragment // context fragments (bundle pieces) to inject
 	Env       map[string]string
 	Verbosity uint32
 	// Managed is the host-assembled config/bundle setup payload. The host
