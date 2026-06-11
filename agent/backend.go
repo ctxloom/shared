@@ -189,10 +189,11 @@ type SetupRequest struct {
 // command exports in Prompts already have the target agent's enablement +
 // metadata resolved host-side.
 type ManagedConfig struct {
-	Prompts          []CommandExport   // per-target-agent slash-command exports
-	Hooks            *wire.HooksConfig // config + default-profile + bundle hooks (no context-injection)
-	MCP              *wire.MCPConfig   // merged config + default-profile MCP servers
-	ManageStatusline bool              // whether ctxloom manages the backend statusline
+	Prompts          []CommandExport           // per-target-agent slash-command exports
+	Hooks            *wire.HooksConfig         // config + default-profile + bundle hooks (no context-injection)
+	MCP              *wire.MCPConfig           // merged config + default-profile MCP servers
+	BundleMCP        map[string]wire.MCPServer // MCP servers shipped by profile + builtin bundles (parallel to Hooks' bundle set)
+	ManageStatusline bool                      // whether ctxloom manages the backend statusline
 }
 
 // ExecuteRequest contains the runtime parameters for execution.

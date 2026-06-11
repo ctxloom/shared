@@ -169,7 +169,10 @@ func (l *eventLog) append(ev Event) error {
 	if _, err := f.Write(append(b, '\n')); err != nil {
 		return err
 	}
-	return nil
+	// Flush to stable storage before reporting success: a power loss must not
+	// drop a just-confirmed event. One small append under an exclusive flock,
+	// so the fsync latency is acceptable for a task tracker.
+	return f.Sync()
 }
 
 func (l *eventLog) lock() (func(), error) {

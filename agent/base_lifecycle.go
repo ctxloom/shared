@@ -10,6 +10,7 @@ type BaseLifecycle struct {
 	backendName        string
 	hooks              *wire.HooksConfig
 	mcp                *wire.MCPConfig
+	bundleMCP          map[string]wire.MCPServer
 	statusLineDisabled bool
 	writeSettings      WriteSettingsFunc
 }
@@ -31,10 +32,10 @@ func NewBaseLifecycle(backendName string, writeSettings WriteSettingsFunc) *Base
 
 // Flush writes accumulated hooks and MCP config to the settings file.
 func (l *BaseLifecycle) Flush(workDir string) error {
-	if l.hooks == nil && l.mcp == nil {
+	if l.hooks == nil && l.mcp == nil && l.bundleMCP == nil {
 		return nil
 	}
-	return l.writeSettings(l.backendName, l.hooks, l.mcp, nil, workDir, l.settingsOpts()...)
+	return l.writeSettings(l.backendName, l.hooks, l.mcp, l.bundleMCP, workDir, l.settingsOpts()...)
 }
 
 // MergeManaged folds the host-assembled ManagedConfig into this lifecycle and
@@ -68,6 +69,14 @@ func (l *BaseLifecycle) MergeManaged(m *ManagedConfig, workDir string, contextHa
 
 	if m.MCP != nil {
 		wire.MergeMCPConfig(l.mcp, m.MCP)
+	}
+
+	// Bundle MCP servers are passed to WriteSettings as a separate set (they
+	// carry their own bundle-source _ctxloom marker), so they ride alongside
+	// l.mcp rather than merging into it — mirroring operations.ApplyHooks, which
+	// hands the same ResolveBundleMCPServers() set as its bundleMCP argument.
+	if m.BundleMCP != nil {
+		l.bundleMCP = m.BundleMCP
 	}
 }
 
