@@ -81,7 +81,12 @@ func mcpJSONDoc(config []byte) (map[string]any, error) {
 		return map[string]any{}, nil
 	}
 	var doc map[string]any
-	if err := json.Unmarshal(config, &doc); err != nil {
+	// UseNumber keeps foreign numeric values exact: a float64 round-trip
+	// would lose precision on integers beyond 2^53 and can re-render large
+	// ints in exponent form, breaking the preserve-foreign-keys contract.
+	dec := json.NewDecoder(bytes.NewReader(config))
+	dec.UseNumber()
+	if err := dec.Decode(&doc); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 	return doc, nil

@@ -19,6 +19,23 @@ type Hook struct {
 	Timeout int    `mapstructure:"timeout" yaml:"timeout,omitempty" json:"timeout,omitempty"` // Timeout in seconds
 	Async   bool   `mapstructure:"async" yaml:"async,omitempty" json:"async,omitempty"`       // Run in background (command only)
 	SCM     string `yaml:"_ctxloom,omitempty" json:"_ctxloom,omitempty"`                      // Hash identifying ctxloom-managed hooks
+
+	// ContextHash marks this hook as a context-injection hook for the given
+	// assembled-context hash. In-process only (never serialized): writers for
+	// agents whose harness fires SessionStart hooks ignore it and write the
+	// hook command; writers for agents that don't (Antigravity) use it to
+	// materialize the context through a channel the agent actually reads,
+	// instead of registering a hook that would never fire. A typed field so no
+	// writer ever has to recognize the injection hook by parsing its command.
+	ContextHash string `mapstructure:"-" yaml:"-" json:"-"`
+
+	// PreToolFallback declares a session_start hook safe to fire on PreToolUse
+	// instead (first tool call and every one after) on agents whose harness
+	// has no session-start event (Antigravity). Only meaningful for
+	// idempotent hooks — the author opts in because the hook may run many
+	// times per session rather than once. Writers for agents with a working
+	// session-start event ignore it.
+	PreToolFallback bool `mapstructure:"pre_tool_fallback" yaml:"pre_tool_fallback,omitempty" json:"pre_tool_fallback,omitempty"`
 }
 
 // UnifiedHooks defines backend-agnostic hook events that get translated per-backend.

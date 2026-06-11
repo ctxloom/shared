@@ -21,9 +21,10 @@ const ContextInjectionTimeout = 60
 // hook from a different cwd.
 func NewContextInjectionHook(hash, workDir string) wire.Hook {
 	return wire.Hook{
-		Command: fmt.Sprintf("ctxloom hook inject-context --project %s %s", shellSingleQuote(absOrSelf(workDir)), hash),
-		Type:    "command",
-		Timeout: ContextInjectionTimeout,
+		Command:     fmt.Sprintf("ctxloom hook inject-context --project %s %s", shellSingleQuote(absOrSelf(workDir)), hash),
+		Type:        "command",
+		Timeout:     ContextInjectionTimeout,
+		ContextHash: hash,
 	}
 }
 
@@ -36,8 +37,9 @@ func NewContextInjectionChunkHook(hash, workDir string, part, total int) wire.Ho
 	return wire.Hook{
 		Command: fmt.Sprintf("ctxloom hook inject-context --project %s --part %d --of %d %s",
 			shellSingleQuote(absOrSelf(workDir)), part, total, hash),
-		Type:    "command",
-		Timeout: ContextInjectionTimeout,
+		Type:        "command",
+		Timeout:     ContextInjectionTimeout,
+		ContextHash: hash,
 	}
 }
 

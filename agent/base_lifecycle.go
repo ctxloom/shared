@@ -29,59 +29,6 @@ func NewBaseLifecycle(backendName string, writeSettings WriteSettingsFunc) *Base
 	}
 }
 
-// OnSessionStart registers a handler for session start events.
-func (l *BaseLifecycle) OnSessionStart(workDir string, handler EventHandler) error {
-	l.ensureHooks()
-	hook := wire.Hook{
-		Command: handler.Command,
-		Type:    "command",
-		Timeout: handler.Timeout,
-	}
-	l.hooks.Unified.SessionStart = append(l.hooks.Unified.SessionStart, hook)
-	return nil
-}
-
-// OnSessionEnd registers a handler for session end events.
-func (l *BaseLifecycle) OnSessionEnd(workDir string, handler EventHandler) error {
-	l.ensureHooks()
-	hook := wire.Hook{
-		Command: handler.Command,
-		Type:    "command",
-		Timeout: handler.Timeout,
-	}
-	l.hooks.Unified.SessionEnd = append(l.hooks.Unified.SessionEnd, hook)
-	return nil
-}
-
-// OnToolUse registers a handler for tool use events.
-func (l *BaseLifecycle) OnToolUse(workDir string, event ToolEvent, handler EventHandler) error {
-	l.ensureHooks()
-	hook := wire.Hook{
-		Command: handler.Command,
-		Type:    "command",
-		Timeout: handler.Timeout,
-	}
-	switch event {
-	case BeforeToolUse:
-		l.hooks.Unified.PreTool = append(l.hooks.Unified.PreTool, hook)
-	case AfterToolUse:
-		l.hooks.Unified.PostTool = append(l.hooks.Unified.PostTool, hook)
-	}
-	return nil
-}
-
-// Clear removes all ctxloom-managed lifecycle handlers.
-func (l *BaseLifecycle) Clear(workDir string) error {
-	l.hooks = &wire.HooksConfig{
-		Plugins: make(map[string]wire.BackendHooks),
-	}
-	l.mcp = &wire.MCPConfig{
-		Servers: make(map[string]wire.MCPServer),
-		Plugins: make(map[string]map[string]wire.MCPServer),
-	}
-	return l.writeSettings(l.backendName, l.hooks, l.mcp, nil, workDir, l.settingsOpts()...)
-}
-
 // Flush writes accumulated hooks and MCP config to the settings file.
 func (l *BaseLifecycle) Flush(workDir string) error {
 	if l.hooks == nil && l.mcp == nil {

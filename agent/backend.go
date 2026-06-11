@@ -61,8 +61,7 @@ type ModelInfo struct {
 // It deliberately does NOT carry the hook/skill/context/MCP capability
 // accessors: those are an agent's internal setup wiring, not something the runner
 // calls, so forcing them onto every backend was a nil-returning contract nobody
-// consumed. They live on the optional Capabilities facet, discovered by type
-// assertion where introspection is actually wanted.
+// consumed.
 type Backend interface {
 	// Identity
 	Name() string
@@ -79,70 +78,6 @@ type Backend interface {
 	Cleanup(ctx context.Context) error
 }
 
-// Capabilities is the optional introspection facet a launch agent exposes for
-// its hook/skill/context/MCP wiring. The runner never needs it — it exists for
-// tests and tooling that want to inspect what an agent wires. Each accessor
-// returns nil when the agent doesn't support that capability. Discover via type
-// assertion: if c, ok := b.(Capabilities); ok { ... }.
-type Capabilities interface {
-	Lifecycle() LifecycleHandler // Session events (start, end, tool use)
-	Skills() SkillRegistry       // User-invokable actions
-	Context() ContextProvider    // Getting context into the LLM
-	MCP() MCPManager             // MCP server registration
-}
-
-// LifecycleHandler manages session lifecycle events.
-// Implementation varies by backend: hooks (Claude/Antigravity), callbacks, env vars, etc.
-type LifecycleHandler interface {
-	// OnSessionStart registers behavior for session start/resume/clear events.
-	OnSessionStart(workDir string, handler EventHandler) error
-	// OnSessionEnd registers behavior for session end events.
-	OnSessionEnd(workDir string, handler EventHandler) error
-	// OnToolUse registers behavior before/after tool invocations.
-	OnToolUse(workDir string, event ToolEvent, handler EventHandler) error
-	// Clear removes all ctxloom-managed lifecycle handlers.
-	Clear(workDir string) error
-}
-
-// ToolEvent specifies when a tool-related event fires.
-type ToolEvent int
-
-const (
-	BeforeToolUse ToolEvent = iota
-	AfterToolUse
-)
-
-// EventHandler defines what happens when a lifecycle event fires.
-type EventHandler struct {
-	// Command to execute (if the backend supports command execution)
-	Command string
-	// Output function to call (for context injection)
-	Output func() (string, error)
-	// Timeout in seconds (0 means use default)
-	Timeout int
-}
-
-// SkillRegistry manages user-invokable actions.
-// Implementation varies: slash commands (Claude), MCP tools, keybindings, etc.
-type SkillRegistry interface {
-	// Register adds a skill that users can invoke.
-	Register(workDir string, skill Skill) error
-	// RegisterAll adds multiple skills at once.
-	RegisterAll(workDir string, skills []Skill) error
-	// Clear removes all ctxloom-managed skills.
-	Clear(workDir string) error
-	// List returns registered skill names.
-	List(workDir string) ([]string, error)
-}
-
-// Skill represents a user-invokable action.
-type Skill struct {
-	Name        string   // Invocation name (e.g., "review", "commit")
-	Description string   // What the skill does
-	Content     string   // The prompt/action content
-	Tags        []string // Categorization tags
-}
-
 // ContextProvider manages getting context into the LLM's awareness.
 // Implementation varies: CLI args, files, hooks, env vars, stdin, etc.
 type ContextProvider interface {
@@ -151,31 +86,6 @@ type ContextProvider interface {
 	Provide(workDir string, fragments []*Fragment) error
 	// Clear removes any provided context.
 	Clear(workDir string) error
-}
-
-// MCPServer represents an MCP server configuration to register.
-type MCPServer struct {
-	Name    string
-	Command string
-	Args    []string
-	Env     map[string]string
-}
-
-// MCPManager manages MCP (Model Context Protocol) server registrations.
-// Implementation varies by backend: settings.json (Claude) / hooks.json (Antigravity), config files, etc.
-type MCPManager interface {
-	// RegisterServer adds an MCP server to the backend configuration.
-	RegisterServer(workDir string, server MCPServer) error
-	// UnregisterServer removes an MCP server from the backend configuration.
-	UnregisterServer(workDir string, name string) error
-	// ListServers returns the names of registered MCP servers.
-	ListServers(workDir string) ([]string, error)
-	// GetServer returns the configuration for a specific MCP server.
-	GetServer(workDir string, name string) (*MCPServer, error)
-	// Clear removes all ctxloom-managed MCP servers.
-	Clear(workDir string) error
-	// Flush writes all pending MCP configuration changes.
-	Flush(workDir string) error
 }
 
 // SessionHistory provides access to the LLM's conversation history and tracks

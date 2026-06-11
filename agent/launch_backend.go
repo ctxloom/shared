@@ -5,12 +5,9 @@ import (
 	"fmt"
 )
 
-// ManagedLifecycle is a LifecycleHandler that can fold a host-assembled
-// ManagedConfig into its managed hooks and flush them to the agent's settings
-// file. BaseLifecycle implements it, so every launch agent's lifecycle (which
-// embeds BaseLifecycle) satisfies it.
+// ManagedLifecycle folds a host-assembled ManagedConfig into its managed hooks
+// and flushes them to the agent's settings file. BaseLifecycle implements it.
 type ManagedLifecycle interface {
-	LifecycleHandler
 	MergeManaged(m *ManagedConfig, workDir, contextHash string)
 	Flush(workDir string) error
 }
@@ -25,52 +22,36 @@ type HashedContext interface {
 	GetContextFilePath() string
 }
 
-// ContentSkills is a SkillRegistry that can register host-resolved command
-// exports (slash commands) directly, bypassing the Skill round-trip. The host
-// maps bundle content to engine-agnostic CommandExports and the agent writes
-// them in its native command format.
+// ContentSkills registers host-resolved command exports (slash commands)
+// directly. The host maps bundle content to engine-agnostic CommandExports and
+// the agent writes them in its native command format.
 type ContentSkills interface {
-	SkillRegistry
 	RegisterFromContent(workDir string, cmds []CommandExport) error
 }
 
 // LaunchBackend is the shared core of a local-CLI launch agent (claude/antigravity).
-// It owns the capability wiring (lifecycle/skills/context/mcp/history), the
-// capability accessors, and the generic Setup/Cleanup that every launch agent
-// shares. A concrete agent embeds it, calls InitLaunch with its constructed
-// capabilities, and implements only the genuinely engine-specific surface:
-// Configure, Execute, and its config's BackendType.
+// It owns the capability wiring (lifecycle/skills/context/history) and the
+// generic Setup/Cleanup that every launch agent shares. A concrete agent embeds
+// it, calls InitLaunch with its constructed capabilities, and implements only
+// the genuinely engine-specific surface: Configure, Execute, and its config's
+// BackendType.
 type LaunchBackend struct {
 	BaseBackend
 	lifecycle ManagedLifecycle
 	skills    ContentSkills
 	context   HashedContext
-	mcp       MCPManager
 	history   SessionHistory
 }
 
 // InitLaunch wires the constructed capabilities into the base. Call it from the
 // concrete constructor once the capabilities (which usually close over the
 // concrete backend) have been built.
-func (b *LaunchBackend) InitLaunch(lifecycle ManagedLifecycle, skills ContentSkills, ctxProvider HashedContext, mcp MCPManager, history SessionHistory) {
+func (b *LaunchBackend) InitLaunch(lifecycle ManagedLifecycle, skills ContentSkills, ctxProvider HashedContext, history SessionHistory) {
 	b.lifecycle = lifecycle
 	b.skills = skills
 	b.context = ctxProvider
-	b.mcp = mcp
 	b.history = history
 }
-
-// Lifecycle returns the lifecycle handler (hooks).
-func (b *LaunchBackend) Lifecycle() LifecycleHandler { return b.lifecycle }
-
-// Skills returns the skill registry (slash commands).
-func (b *LaunchBackend) Skills() SkillRegistry { return b.skills }
-
-// Context returns the context provider (file + hook).
-func (b *LaunchBackend) Context() ContextProvider { return b.context }
-
-// MCP returns the MCP server manager.
-func (b *LaunchBackend) MCP() MCPManager { return b.mcp }
 
 // History returns the session history accessor.
 func (b *LaunchBackend) History() SessionHistory { return b.history }

@@ -24,15 +24,6 @@ type SettingsWriter interface {
 
 	// Status reports which managed artifacts are currently wired in.
 	Status(projectDir string) (SettingsStatus, error)
-
-	// WriteHooks writes hooks only (backwards compatible).
-	WriteHooks(cfg *wire.HooksConfig, projectDir string) error
-
-	// SettingsPath returns the path to the settings file.
-	SettingsPath(projectDir string) string
-
-	// HooksPath is an alias for SettingsPath.
-	HooksPath(projectDir string) string
 }
 
 // SettingsStatus reports which managed artifacts an agent has wired into its
