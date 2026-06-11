@@ -174,6 +174,32 @@ func TestResolveAdoptUnknownMarker(t *testing.T) {
 	}
 }
 
+// TestResolveRejectsCraftedMarker pins the traversal guard: a marker committed
+// by a third party (the file is gitignored only by convention) must never be
+// adopted as identity, since the id becomes a task-log filename. Resolve fails
+// closed rather than minting/adopting a traversal-shaped id.
+func TestResolveRejectsCraftedMarker(t *testing.T) {
+	m := newManager(t)
+	dir := t.TempDir()
+
+	// Write the marker file directly — an attacker doesn't go through
+	// WriteMarker — with a path-traversal payload.
+	markerPath := paths.ProjectMarkerPath(dir)
+	if err := os.MkdirAll(filepath.Dir(markerPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(markerPath, []byte("../../../escape\n"), 0o644); err != nil {
+		t.Fatalf("write crafted marker: %v", err)
+	}
+
+	if _, err := m.Resolve(dir); err == nil {
+		t.Fatal("Resolve adopted a traversal marker; want rejection")
+	}
+	if _, err := ReadMarker(dir); err == nil {
+		t.Fatal("ReadMarker returned a traversal id; want rejection")
+	}
+}
+
 func TestMintUniqueAgainstRegistry(t *testing.T) {
 	m := newManager(t)
 	seen := map[string]struct{}{}

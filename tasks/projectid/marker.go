@@ -2,6 +2,7 @@ package projectid
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +22,18 @@ func ReadMarker(projectDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(data)), nil
+	id := strings.TrimSpace(string(data))
+	if id == "" {
+		return "", nil
+	}
+	// The marker travels with the working tree and can be committed by a
+	// third party, so a crafted value must never be adopted as identity or
+	// flow into a task-log path. Reject anything that is not a clean,
+	// single-segment id here, at the source.
+	if err := paths.ValidateProjectID(id); err != nil {
+		return "", fmt.Errorf("invalid project marker at %s: %w", projectDir, err)
+	}
+	return id, nil
 }
 
 // WriteMarker writes id into <projectDir>/.ctxloom/project-id, creating the
