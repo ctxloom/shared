@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/ctxloom/shared/clidiag"
 	"github.com/ctxloom/shared/wire"
 	"github.com/spf13/afero"
 )
@@ -59,9 +59,12 @@ func GetFS(fs afero.Fs) afero.Fs {
 	return fs
 }
 
-// Warn prints a "ctxloom: warning:" line to stderr.
+// Warn prints a "ctxloom: warning:" line to stderr. Thin wrapper over
+// clidiag.Warn so the family's "<prog>: warning:" format lives in exactly one
+// place; the ctxloom-family callers here (the agent-engine libs, settings and
+// context internals) all warn under the ctxloom name.
 func Warn(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, "ctxloom: warning: "+format+"\n", args...)
+	clidiag.Warn("ctxloom", format, args...)
 }
 
 // ComputeHookHash returns a short, stable hash of a hook's defining fields.
