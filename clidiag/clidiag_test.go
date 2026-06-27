@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+func TestLine(t *testing.T) {
+	if got, want := Line("ctxloom", "no files match %q", "x"), "ctxloom: warning: no files match \"x\"\n"; got != want {
+		t.Fatalf("Line = %q, want %q", got, want)
+	}
+}
+
 func TestFwarn(t *testing.T) {
 	var b strings.Builder
 	Fwarn(&b, "taskloom", "sync failed: %v", "boom")

@@ -66,6 +66,19 @@ func (e *ErrWriter) WriteRaw(p []byte) {
 	_, e.err = e.w.Write(p)
 }
 
+// Write implements io.Writer, short-circuited once a prior write has failed, so
+// an ErrWriter can be handed to fmt.Fprintf / io.WriteString / clidiag.Fwarn and
+// still accumulate its first error. The returned error mirrors Err(); callers
+// using the Errors-are-values pattern ignore it and check Err() at the end.
+func (e *ErrWriter) Write(p []byte) (int, error) {
+	if e.err != nil {
+		return 0, e.err
+	}
+	var n int
+	n, e.err = e.w.Write(p)
+	return n, e.err
+}
+
 // Err returns the first write error encountered, or nil.
 func (e *ErrWriter) Err() error {
 	return e.err
