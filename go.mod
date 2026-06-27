@@ -3,6 +3,7 @@ module github.com/ctxloom/shared
 go 1.25.0
 
 require (
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gofrs/flock v0.13.0
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1

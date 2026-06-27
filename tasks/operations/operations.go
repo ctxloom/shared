@@ -66,6 +66,30 @@ func ResolveProjectIdentity(workDir string) (projectID, warning string, err erro
 	return res.ProjectID, res.Warning, nil
 }
 
+// ResolveLogPath resolves the per-project task log path for tc — the project-id
+// pinned in tc (by `ctxloom run`) or a live registry resolution — without
+// opening the store. `taskloom watch` uses it to learn which file to watch, so
+// the path convention stays owned here rather than reconstructed by a frontend.
+func ResolveLogPath(tc TaskContext) (projectID, logPath string, err error) {
+	projectID = tc.ProjectID
+	if projectID == "" {
+		pm, perr := projectid.Open("")
+		if perr != nil {
+			return "", "", fmt.Errorf("open project registry: %w", perr)
+		}
+		res, rerr := pm.Resolve(tc.WorkDir)
+		if rerr != nil {
+			return "", "", fmt.Errorf("resolve project id: %w", rerr)
+		}
+		projectID = res.ProjectID
+	}
+	logPath, err = paths.TasksLogPath(projectID)
+	if err != nil {
+		return projectID, "", fmt.Errorf("task log path: %w", err)
+	}
+	return projectID, logPath, nil
+}
+
 // ListTasks resolves the project's task log and returns its tasks, optionally
 // with a summary. Completed (Done/Archived) tasks are excluded by default;
 // includeDone opts them back in, as does naming a status explicitly.
