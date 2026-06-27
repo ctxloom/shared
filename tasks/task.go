@@ -26,6 +26,33 @@ const (
 // DefaultStatusOrder is the canonical status ordering for display.
 var DefaultStatusOrder = []string{StatusInProgress, StatusToDo, StatusDeferred, StatusDone, StatusArchived}
 
+// StatusInfo describes one status for clients that render the taxonomy (status
+// group headers, status pickers) instead of hardcoding it. `terminal` marks the
+// completed statuses (Done/Archived); `requires_trigger` marks statuses that
+// need a revive condition (Deferred), so a UI knows to prompt for one.
+type StatusInfo struct {
+	Name            string `json:"name"`
+	Order           int    `json:"order"`
+	Terminal        bool   `json:"terminal"`
+	RequiresTrigger bool   `json:"requires_trigger"`
+}
+
+// Statuses returns the canonical status taxonomy in display order — the single
+// source of truth a client can read instead of baking in the status set, its
+// order, or which statuses are terminal / need a trigger.
+func Statuses() []StatusInfo {
+	out := make([]StatusInfo, len(DefaultStatusOrder))
+	for i, name := range DefaultStatusOrder {
+		out[i] = StatusInfo{
+			Name:            name,
+			Order:           i,
+			Terminal:        statusIsDone(name),
+			RequiresTrigger: name == StatusDeferred,
+		}
+	}
+	return out
+}
+
 // ErrTriggerRequired is returned when a task is set Deferred without a trigger.
 // A Deferred task is parked on a named wake-up condition (mirroring an ADR
 // revive trigger), so the condition must be supplied.
