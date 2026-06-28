@@ -161,8 +161,8 @@ type SessionEntry struct {
 type SessionEntryType string
 
 const (
-	EntryTypeUser       SessionEntryType = "user"
-	EntryTypeAssistant  SessionEntryType = "assistant"
+	EntryTypeUser      SessionEntryType = "user"
+	EntryTypeAssistant SessionEntryType = "assistant"
 	// EntryTypeThinking is the model's extended-thinking / reasoning prose. It is
 	// distinct from assistant text so a frontend can style or toggle it separately
 	// (the content is the reasoning, never tool fields). Only emitted when the

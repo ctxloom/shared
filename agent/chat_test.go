@@ -14,6 +14,7 @@ import (
 //   - for each inbound ChatMessage, emits an assistant Entry + a Complete;
 //   - returns when `in` is closed and drained, or ctx is cancelled;
 //   - closes `out` exactly once before returning (producer owns out's close).
+//
 // The caller owns `in` and closes it to signal "no more input".
 type fakeChat struct{}
 

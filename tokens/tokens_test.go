@@ -8,7 +8,7 @@ func TestEstimate(t *testing.T) {
 		want int
 	}{
 		{"", 0},
-		{"abcd", 1},     // 4 chars / 4
+		{"abcd", 1},      // 4 chars / 4
 		{"abcdefghi", 2}, // 9 chars / 4 = 2 (floor)
 	}
 	for _, tt := range tests {

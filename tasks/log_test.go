@@ -88,8 +88,8 @@ func TestLogRemoveTombstones(t *testing.T) {
 func TestLogSummarize(t *testing.T) {
 	s := newLog(t, "")
 	a, _ := s.Add("a", "")
-	s.Add("b", "")
-	s.SetStatus(a.HarpID, StatusInProgress)
+	_, _ = s.Add("b", "")
+	_, _ = s.SetStatus(a.HarpID, StatusInProgress)
 
 	sum, err := s.Summarize()
 	if err != nil {

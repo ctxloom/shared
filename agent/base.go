@@ -166,4 +166,3 @@ func GetPromptContent(prompt *Fragment) string {
 	}
 	return ""
 }
-
