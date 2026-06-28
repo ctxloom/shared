@@ -76,6 +76,17 @@ func RunInteractive(ctx context.Context, cmd *exec.Cmd, stdin io.Reader, stdout,
 	// fed by the server's stream pump), so unlike a real os.Stdin it unblocks
 	// when the pipe is closed at end of run — no parked-goroutine concern.
 	if stdin != nil {
+		// Deterministically unblock the copier's parked stdin.Read when this
+		// function returns: a goroutine parked inside Read cannot observe
+		// close(done), and neither ptty.Close (which unblocks ptty.Write) nor
+		// the goroutine's own deferred Close (which only fires after it returns)
+		// can wake it, so absent this the copier outlives RunInteractive until
+		// the caller happens to close the pipe's write end. Gated to
+		// *io.PipeReader so a caller-owned reader (e.g. a real os.Stdin) is
+		// never closed from here; Close is idempotent with the goroutine's own.
+		if pr, ok := stdin.(*io.PipeReader); ok {
+			defer func() { _ = pr.Close() }()
+		}
 		go func() {
 			// When this copier stops reading, unblock the wire's writer: a
 			// write into an io.Pipe with no reader parks forever (it is not

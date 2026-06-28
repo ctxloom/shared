@@ -175,6 +175,23 @@ func GenerateShortName() string {
 	return GenerateNameWithOptions(Options{Components: 2})
 }
 
+// UniqueFrom returns the first id produced by gen that is not already a key of
+// used, trying up to 100 times. It is the shared "unique name from a set"
+// allocator behind both the project-id registry and the per-project task ids,
+// which differ only in which harp generator they pass (GenerateName vs
+// GenerateShortName). On exhaustion (100 collisions) it returns one final
+// unredeemed gen() — a tidy, rare best-effort fallback; callers that cannot
+// tolerate even a residual collision should check the result against used.
+func UniqueFrom(used map[string]struct{}, gen func() string) string {
+	for range 100 {
+		id := gen()
+		if _, dup := used[id]; !dup {
+			return id
+		}
+	}
+	return gen()
+}
+
 // GenerateNameWithOptions returns a name built per the given options.
 // Invalid options are silently clamped (see Options.normalize).
 func GenerateNameWithOptions(opts Options) string {

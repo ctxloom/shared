@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ctxloom/shared/wire"
@@ -58,6 +59,30 @@ func TestAtomicWriteFile(t *testing.T) {
 		require.NoError(t, AtomicWriteFile(fs, path, []byte(`{}`), "test file"))
 		exists, _ := afero.Exists(fs, path+".ctxloom.tmp")
 		assert.False(t, exists, "temp file is cleaned up")
+	})
+
+	t.Run("new file defaults to owner-only mode", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		path := "/test/file.json"
+		require.NoError(t, AtomicWriteFile(fs, path, []byte(`{}`), "test file"))
+		info, err := fs.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "new settings files are not world-readable")
+	})
+
+	t.Run("preserves a tightened existing mode", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		path := "/test/file.json"
+		require.NoError(t, afero.WriteFile(fs, path, []byte(`{"original": true}`), 0600))
+
+		require.NoError(t, AtomicWriteFile(fs, path, []byte(`{"updated": true}`), "test file"))
+
+		info, err := fs.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm(), "rewrite must not widen a tightened mode")
+		bInfo, err := fs.Stat(path + ".ctxloom.bak")
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0600), bInfo.Mode().Perm(), "backup mirrors the restrictive source mode")
 	})
 }
 

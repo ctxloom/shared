@@ -379,7 +379,16 @@ func (l *eventLog) repair() error {
 		id := uniqueHarpIDFromSet(f.issued)
 		f.issued[id] = struct{}{}
 		f.repaired[key] = struct{}{}
-		ev := Event{Op: opAdd, Task: id, Text: a.Text, Status: defaultStatus(a.Status), Session: a.Session, RepairOf: key}
+		// Carry the displaced add's trigger through the repair: a Deferred task
+		// re-added without its trigger would violate the Deferred invariant
+		// (ValidateStatusTrigger). repair() appends directly, bypassing that
+		// validation, so guard here — fall a malformed anomaly back to a plain
+		// to-do rather than re-introduce the forbidden state or drop the task.
+		status, trigger := defaultStatus(a.Status), a.Trigger
+		if err := ValidateStatusTrigger(status, trigger); err != nil {
+			status, trigger = StatusToDo, ""
+		}
+		ev := Event{Op: opAdd, Task: id, Text: a.Text, Status: status, Trigger: trigger, Session: a.Session, RepairOf: key}
 		if err := l.append(ev); err != nil {
 			return err
 		}

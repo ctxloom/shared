@@ -41,6 +41,11 @@ func (m *MCPConfig) ShouldAutoRegisterCtxloom() bool {
 
 // MergeMCPConfig merges src MCP config into dest.
 // Later sources override earlier ones for the same server name.
+//
+// Merged servers are deep-copied (Args slice and Env map duplicated) so dest is
+// independent of src: a caller that later mutates a merged server's Env/Args —
+// e.g. injecting an env var — must not leak the change back into the source
+// config or into another dest that merged the same source.
 func MergeMCPConfig(dest *MCPConfig, src *MCPConfig) {
 	if src == nil || dest == nil {
 		return
@@ -56,7 +61,7 @@ func MergeMCPConfig(dest *MCPConfig, src *MCPConfig) {
 		dest.Servers = make(map[string]MCPServer)
 	}
 	for name, server := range src.Servers {
-		dest.Servers[name] = server
+		dest.Servers[name] = cloneMCPServer(server)
 	}
 
 	// Merge plugin-specific servers
@@ -68,7 +73,26 @@ func MergeMCPConfig(dest *MCPConfig, src *MCPConfig) {
 			dest.Plugins[backend] = make(map[string]MCPServer)
 		}
 		for name, server := range servers {
-			dest.Plugins[backend][name] = server
+			dest.Plugins[backend][name] = cloneMCPServer(server)
 		}
 	}
+}
+
+// cloneMCPServer returns a copy of s with its mutable Args slice and Env map
+// duplicated, so the copy never aliases s's backing array/map. A plain struct
+// copy is shallow and would share both.
+func cloneMCPServer(s MCPServer) MCPServer {
+	if s.Args != nil {
+		args := make([]string, len(s.Args))
+		copy(args, s.Args)
+		s.Args = args
+	}
+	if s.Env != nil {
+		env := make(map[string]string, len(s.Env))
+		for k, v := range s.Env {
+			env[k] = v
+		}
+		s.Env = env
+	}
+	return s
 }

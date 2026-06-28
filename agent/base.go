@@ -156,7 +156,7 @@ func AssembleContext(fragments []*Fragment) string {
 		}
 		parts = append(parts, strings.TrimSpace(f.Content))
 	}
-	return strings.Join(parts, "\n\n---\n\n")
+	return strings.Join(parts, contextSectionSep)
 }
 
 // GetPromptContent extracts prompt content from a fragment.

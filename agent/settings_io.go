@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/ctxloom/shared/clidiag"
@@ -92,21 +93,30 @@ func ComputeMCPServerHash(s wire.MCPServer) string {
 // AtomicWriteFile writes data to path atomically: it backs up any existing file
 // to path.ctxloom.bak, writes to a temp file, then renames (falling back to a
 // direct write if rename fails cross-device).
+//
+// The existing file's mode is preserved across the rewrite, and a brand-new
+// file defaults to 0600 (not a world-readable 0644). Settings files written
+// here can carry MCPServer.Env secrets (API keys/tokens), so a mode a user
+// deliberately tightened must never be silently widened; the backup copy is
+// written with the same restrictive mode rather than a hardcoded 0644.
 func AtomicWriteFile(fs afero.Fs, path string, data []byte, desc string) error {
-	if exists, _ := afero.Exists(fs, path); exists {
+	// Default new files to owner-only; reuse the existing mode when present.
+	perm := os.FileMode(0600)
+	if info, err := fs.Stat(path); err == nil {
+		perm = info.Mode().Perm()
 		backupPath := path + ".ctxloom.bak"
 		if origData, err := afero.ReadFile(fs, path); err == nil {
-			_ = afero.WriteFile(fs, backupPath, origData, 0644)
+			_ = afero.WriteFile(fs, backupPath, origData, perm)
 		}
 	}
 
 	tmpPath := path + ".ctxloom.tmp"
-	if err := afero.WriteFile(fs, tmpPath, data, 0644); err != nil {
+	if err := afero.WriteFile(fs, tmpPath, data, perm); err != nil {
 		return fmt.Errorf("failed to write %s: %w", desc, err)
 	}
 
 	if err := fs.Rename(tmpPath, path); err != nil {
-		if writeErr := afero.WriteFile(fs, path, data, 0644); writeErr != nil {
+		if writeErr := afero.WriteFile(fs, path, data, perm); writeErr != nil {
 			return fmt.Errorf("failed to write %s: %w", desc, writeErr)
 		}
 		_ = fs.Remove(tmpPath)

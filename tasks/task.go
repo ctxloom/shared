@@ -122,13 +122,7 @@ func hashText(s string) string {
 // attempts is overkill against the name space and a small set; the log backend's
 // mint-with-check (and the fold-and-repair pass) cover the residual case.
 func uniqueHarpIDFromSet(used map[string]struct{}) string {
-	for range 100 {
-		id := harp.GenerateShortName()
-		if _, dup := used[id]; !dup {
-			return id
-		}
-	}
-	return harp.GenerateShortName()
+	return harp.UniqueFrom(used, harp.GenerateShortName)
 }
 
 func filterTasks(all []Task, statuses []string, term string) []Task {

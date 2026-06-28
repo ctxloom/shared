@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ctxloom/shared/iox"
 	"github.com/ctxloom/shared/tasks/paths"
 )
 
@@ -44,5 +45,8 @@ func WriteMarker(projectDir, id string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(id+"\n"), 0o644)
+	// Atomic write, matching how the registry persists (registry.saveLocked):
+	// a crash or concurrent write mid-update must not leave a truncated marker
+	// that a later ReadMarker could trim+validate into a different identity.
+	return iox.WriteFileAtomic(path, []byte(id+"\n"), 0o644)
 }

@@ -146,9 +146,18 @@ func (m *Manager) Mint(projectDir string) (Entry, error) {
 	if err != nil {
 		return Entry{}, err
 	}
+	// Re-check under the filelock that no entry already maps this exact tree:
+	// Resolve decides "mint" with the registry unlocked, so two processes
+	// first-launching the same brand-new tree can both reach here. The first to
+	// win the lock appends; the second must return that identity rather than
+	// append a second, competing entry — one tree keeps one identity.
+	want := cleanPath(projectDir)
 	used := make(map[string]struct{}, len(reg.Projects))
 	for _, p := range reg.Projects {
 		used[p.ProjectID] = struct{}{}
+		if cleanPath(p.Path) == want {
+			return p, nil
+		}
 	}
 	now := time.Now().UTC()
 	e := Entry{
@@ -245,11 +254,5 @@ func cleanPath(p string) string {
 // project-ids and session harps live in separate registries, so an incidental
 // string match across the two is harmless.
 func generateUniqueID(used map[string]struct{}) string {
-	for range 100 {
-		id := harp.GenerateName()
-		if _, dup := used[id]; !dup {
-			return id
-		}
-	}
-	return harp.GenerateName()
+	return harp.UniqueFrom(used, harp.GenerateName)
 }

@@ -53,5 +53,10 @@ jobs:
             exit 1
           fi
           git tag "$TAG"
-          git push origin "$TAG"
+          # Push with a fully-qualified refspec: the dev branch shares this
+          # short name (refs/heads/v0.7.0-pre1 exists on origin), so an
+          # unqualified `git push origin "$TAG"` would rely on git's
+          # destination-guessing and could land in the wrong namespace or warn
+          # on ambiguity. refs/tags/$TAG:refs/tags/$TAG is unambiguous.
+          git push origin "refs/tags/$TAG:refs/tags/$TAG"
           echo "Tagged $TAG — consumers can now pin github.com/ctxloom/shared@$TAG."

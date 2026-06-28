@@ -101,7 +101,7 @@ func WriteContextFile(workDir string, fragments []*Fragment, opts ...ContextFile
 		return "", nil
 	}
 
-	content := strings.Join(parts, "\n\n---\n\n")
+	content := strings.Join(parts, contextSectionSep)
 
 	// Warn if context exceeds recommended size threshold.
 	//

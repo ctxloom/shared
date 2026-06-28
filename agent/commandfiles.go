@@ -146,9 +146,15 @@ func WriteManagedCommandFiles(fs afero.Fs, dir, manifestName string, cmds []Comm
 			Warn("skipping command %q: name is not a relative path inside %s", c.Name, dir)
 			continue
 		}
+		// One malformed command must not abort writing the others nor destroy
+		// the previously-good set: warn and skip per-command (the project's
+		// warn-and-continue fault-tolerance philosophy). The manifest is then
+		// (re)written from whatever was actually written below, so the on-disk
+		// set always stays tracked and no file is orphaned.
 		relPath, content, err := render(c)
 		if err != nil {
-			return fmt.Errorf("render command %s: %w", c.Name, err)
+			Warn("skipping command %q: render failed: %v", c.Name, err)
+			continue
 		}
 		path, ok := SafeCommandRelPath(dir, relPath)
 		if !ok {
@@ -157,16 +163,19 @@ func WriteManagedCommandFiles(fs afero.Fs, dir, manifestName string, cmds []Comm
 		}
 		if len(written) == 0 {
 			if err := fs.MkdirAll(dir, 0755); err != nil {
-				return fmt.Errorf("create command dir: %w", err)
+				Warn("skipping command %q: create command dir %s: %v", c.Name, dir, err)
+				continue
 			}
 		}
 		if parent := filepath.Dir(path); parent != filepath.Clean(dir) {
 			if err := fs.MkdirAll(parent, 0755); err != nil {
-				return fmt.Errorf("create command subdir %s: %w", parent, err)
+				Warn("skipping command %q: create command subdir %s: %v", c.Name, parent, err)
+				continue
 			}
 		}
 		if err := afero.WriteFile(fs, path, content, 0644); err != nil {
-			return fmt.Errorf("write command %s: %w", c.Name, err)
+			Warn("skipping command %q: write failed: %v", c.Name, err)
+			continue
 		}
 		written = append(written, relPath)
 	}
@@ -204,15 +213,45 @@ func TransformMustacheToPositional(content string) string {
 	})
 }
 
+// yamlNumberRe matches values a typing YAML parser would read as a number
+// (int/float, optional sign and exponent) rather than a string.
+var yamlNumberRe = regexp.MustCompile(`^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$`)
+
+// isYAMLTypeAmbiguous reports whether s would be typed as a non-string scalar
+// (bool/null/number) by a strict YAML parser if emitted unquoted. Covers the
+// YAML 1.1 boolean/null literals (true/false/null/yes/no/on/off and ~, any
+// case) and numeric scalars, so a Description/hint like "null" or "123" stays a
+// string instead of becoming nil/int.
+func isYAMLTypeAmbiguous(s string) bool {
+	switch strings.ToLower(s) {
+	case "true", "false", "null", "yes", "no", "on", "off", "~":
+		return true
+	}
+	return yamlNumberRe.MatchString(s)
+}
+
 // EscapeYAMLString quotes a string for safe inclusion in YAML frontmatter when
-// it contains special characters.
+// it contains special characters, when it would otherwise be typed as a
+// non-string scalar (bool/null/number), or when it begins with a YAML indicator
+// character. When quoting, backslash is escaped before the double quote: in a
+// YAML double-quoted scalar backslash is the escape introducer, so an unescaped
+// backslash would either corrupt the value (e.g. \b -> backspace) or hard-fail
+// the parse (e.g. \p -> invalid escape).
 func EscapeYAMLString(s string) string {
 	needsQuotes := strings.ContainsAny(s, ":#{}[]&*!|>'\"%@`") ||
 		strings.HasPrefix(s, " ") ||
 		strings.HasSuffix(s, " ") ||
-		strings.Contains(s, "\n")
+		strings.Contains(s, "\n") ||
+		strings.HasPrefix(s, "- ") ||
+		strings.HasPrefix(s, "? ") ||
+		s == "-" || s == "?" ||
+		isYAMLTypeAmbiguous(s)
 	if needsQuotes {
-		return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+		// Backslash first, so the escaping backslashes we insert are not then
+		// re-doubled by the quote replacement.
+		s = strings.ReplaceAll(s, `\`, `\\`)
+		s = strings.ReplaceAll(s, `"`, `\"`)
+		return `"` + s + `"`
 	}
 	return s
 }
