@@ -81,8 +81,8 @@ func (b *LaunchBackend) Setup(ctx context.Context, req *SetupRequest) error {
 	}
 
 	if req.Managed != nil {
-		if len(req.Managed.Prompts) > 0 {
-			if err := b.skills.RegisterFromContent(b.WorkDir(), req.Managed.Prompts); err != nil {
+		if len(req.Managed.Skills) > 0 {
+			if err := b.skills.RegisterFromContent(b.WorkDir(), req.Managed.Skills); err != nil {
 				return fmt.Errorf("failed to register skills: %w", err)
 			}
 		}

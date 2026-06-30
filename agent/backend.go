@@ -36,7 +36,7 @@ const (
 // Fragment is one piece of context — a bundle fragment — with its metadata. It
 // is the unit of context an agent injects into the model (via SetupRequest.
 // Fragments); it has nothing to do with slash commands/skills, which travel
-// separately as ManagedConfig.Prompts ([]CommandExport).
+// separately as ManagedConfig.Skills ([]CommandExport).
 type Fragment struct {
 	Name         string
 	Version      string
@@ -191,10 +191,10 @@ type SetupRequest struct {
 // plugin never imports ctxloom config/bundles. Hooks is the
 // config+default-profile+bundle hook set WITHOUT context-injection; the agent
 // appends its own context-injection hook from its plugin-side context hash. The
-// command exports in Prompts already have the target agent's enablement +
+// command exports in Skills already have the target agent's enablement +
 // metadata resolved host-side.
 type ManagedConfig struct {
-	Prompts          []CommandExport           // per-target-agent slash-command exports
+	Skills           []CommandExport           // per-target-agent skill (slash-command) exports
 	Hooks            *wire.HooksConfig         // config + default-profile + bundle hooks (no context-injection)
 	MCP              *wire.MCPConfig           // merged config + default-profile MCP servers
 	BundleMCP        map[string]wire.MCPServer // MCP servers shipped by profile + builtin bundles (parallel to Hooks' bundle set)
